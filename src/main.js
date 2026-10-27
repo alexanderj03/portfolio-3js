@@ -5,7 +5,7 @@
 import './style.css';
 import * as THREE from 'three';
 import { createStage } from './scene.js';
-import { loadIsland } from './loader.js';
+import { loadIsland, hideLoading } from './loader.js';
 import { createInteraction } from './interaction.js';
 import { createAnimations } from './animations.js';
 import { createUI, SECTIONS, NARROW_SCREEN } from './ui.js';
@@ -14,6 +14,7 @@ import { createPlayer } from './player.js';
 import { createScreens } from './screens.js';
 import { createFreeCam } from './freecam.js';
 import { createNight } from './night.js';
+import { createIntro } from './intro.js';
 import { loadAvatar } from './avatar.js';
 import { avatar as avatarText } from './content.js';
 
@@ -103,11 +104,18 @@ loadIsland(scene).then(async ({ root }) => {
   createFreeCam({ controls, interaction });
   animate = createAnimations(root);
   stage.onResize(() => interaction.onResize());
+  // The opening shot: a close-up of the person waving, then the camera
+  // pulls back to the whole island. Reduced motion: start on the hero shot.
+  if (player && !reduceMotion.matches) createIntro({ camera, player, interaction, greeting: avatar.greeting });
 
   // Handy for poking around in the browser console while developing,
   // e.g. `island.root.getObjectByName('CafeCup')` or `island.player.play('Wave')`.
   if (import.meta.env.DEV) window.island = { scene, camera, controls, root, player, THREE };
-});
+})
+  // Only now fade the loading screen out, with everything (including the
+  // opening close-up) in place. `finally` = even if something above failed,
+  // so the page is never stuck behind the loading screen.
+  .finally(hideLoading);
 
 // 4. Render loop: runs once per screen refresh (usually 60 times a second).
 const timer = new THREE.Timer();

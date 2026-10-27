@@ -57,8 +57,10 @@ function setProgress(fraction) {
 let markLoadingGone;
 export const loadingScreenGone = new Promise((resolve) => (markLoadingGone = resolve));
 
-// Fades the loading screen out, then removes it from the page.
-function hideLoading() {
+// Fades the loading screen out, then removes it from the page. Called by
+// main.js once everything is set up (island, person and opening camera
+// shot), so the first thing the visitor sees is the finished scene.
+export function hideLoading() {
   barEl.style.width = '100%';
   loadingEl.classList.add('done');
   const remove = () => {
@@ -113,7 +115,6 @@ export async function loadIsland(scene) {
   });
 
   scene.add(root);
-  hideLoading();
   return { root, isPlaceholder };
 }
 

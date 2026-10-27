@@ -197,7 +197,7 @@ export function createInteraction({ camera, controls, renderer, root, ui, labels
   });
 
   // --- Camera flights ---------------------------------------------------
-  let state = 'home'; // 'home' | 'flying' | 'focused'
+  let state = 'home'; // 'home' | 'flying' | 'focused' | 'held' (the opening close-up, see holdView)
   let focusedSection = null;
   let flight = null;
   let freeLook = false; // camera unlocked? (set by freecam.js)
@@ -221,9 +221,10 @@ export function createInteraction({ camera, controls, renderer, root, ui, labels
   }
 
   // Starts a smooth camera move to `view` ({ position, target, shift }).
-  // `onDone` runs when it arrives.
-  function flyTo(view, onDone) {
-    const duration = reduceMotion.matches ? 0 : FLY_DURATION;
+  // `onDone` runs when it arrives. `duration` is in seconds; `arc: false`
+  // flies in a straight line instead of lifting over the island.
+  function flyTo(view, onDone, { duration = FLY_DURATION, arc = true } = {}) {
+    if (reduceMotion.matches) duration = 0;
     if (state === 'home') {
       // A drag that's still "coasting" (damping) would carry on after the
       // flight and nudge the camera off its spot. One update without damping
@@ -248,7 +249,7 @@ export function createInteraction({ camera, controls, renderer, root, ui, labels
       hide: view.hide ?? [],
       halfwayDone: false,
       // Lift the camera a little mid-flight so it arcs over the island.
-      lift: camera.position.distanceTo(position) * 0.12,
+      lift: arc ? camera.position.distanceTo(position) * 0.12 : 0,
       elapsed: 0,
       duration,
       onDone,
@@ -444,18 +445,40 @@ export function createInteraction({ camera, controls, renderer, root, ui, labels
     flyHome(heroView());
   }
 
+  // The opening shot (intro.js): puts the camera at `view` ({ position,
+  // target }) and keeps it there, with OrbitControls off, until
+  // releaseView() flies it out to the hero shot. Opening a building or
+  // pressing Back before then simply flies from the close-up instead.
+  function holdView(view) {
+    camera.position.copy(view.position);
+    lookTarget.copy(view.target);
+    camera.lookAt(lookTarget);
+    state = 'held';
+    controls.enabled = false;
+  }
+
+  // Ends holdView(): flies to the hero shot. `options` are flyTo()'s
+  // ({ duration, arc }). Does nothing if the camera has already moved on.
+  function releaseView(options) {
+    if (state === 'held') flyHome(heroView(), options);
+  }
+
   function heroView() {
     return { ...getHeroView(camera.aspect), shift: new THREE.Vector2(0, 0) };
   }
 
   // Fly to an overview `view` and hand the camera back to OrbitControls there.
-  function flyHome(view) {
-    flyTo(view, () => {
-      state = 'home';
-      controls.target.copy(view.target);
-      controls.enabled = true;
-      controls.update();
-    });
+  function flyHome(view, options) {
+    flyTo(
+      view,
+      () => {
+        state = 'home';
+        controls.target.copy(view.target);
+        controls.enabled = true;
+        controls.update();
+      },
+      options,
+    );
   }
 
   // Makes `object` (something outside the island, like the avatar) clickable:
@@ -483,6 +506,8 @@ export function createInteraction({ camera, controls, renderer, root, ui, labels
     focus,
     goHome,
     resetView,
+    holdView,
+    releaseView,
     onResize,
     addClickable,
     // True while the camera is unlocked for looking around (freecam.js).

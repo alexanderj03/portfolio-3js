@@ -97,9 +97,15 @@ function createAvatar(scene, gltf) {
     current = next;
   }
 
+  // Resolves when the greeting wave is over (or straight away if there's no
+  // greeting). intro.js waits for it before pulling the camera back.
+  let greeted;
+  const greeting = new Promise((resolve) => (greeted = resolve));
+
   // A clip that plays a set number of times (like Wave) fires "finished"
   // when it's done: go back to Idle.
   mixer.addEventListener('finished', (event) => {
+    if (event.action === actions.Wave) greeted(); // (later waves call it too; a promise only resolves once)
     if (event.action === current) fadeTo('Idle');
   });
 
@@ -109,7 +115,8 @@ function createAvatar(scene, gltf) {
   // visitor actually sees it. Skipped with reduced motion, or if they've
   // already been clicked somewhere and are walking.
   loadingScreenGone.then(() => {
-    if (!reduceMotion.matches && current === actions.Idle) play('Wave', GREETING_WAVES);
+    if (!reduceMotion.matches && current === actions.Idle && actions.Wave) play('Wave', GREETING_WAVES);
+    else greeted();
   });
 
   // Play a clip `times` times, then go back to Idle. play('Wave') waves;
@@ -137,6 +144,7 @@ function createAvatar(scene, gltf) {
   return {
     object, // the character itself (THREE.Object3D): move and turn this
     hitBox, // the invisible box for hover/click rays
+    greeting, // Promise: the hello-wave after the loading screen has finished
     update,
     play,
     idle: () => fadeTo('Idle'),
