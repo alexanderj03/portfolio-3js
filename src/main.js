@@ -8,7 +8,7 @@ import { createStage } from './scene.js';
 import { loadIsland } from './loader.js';
 import { createInteraction } from './interaction.js';
 import { createAnimations } from './animations.js';
-import { createUI, SECTIONS } from './ui.js';
+import { createUI, SECTIONS, NARROW_SCREEN } from './ui.js';
 import { createSigns } from './signs.js';
 import { createPlayer } from './player.js';
 import { createScreens } from './screens.js';
@@ -31,7 +31,7 @@ let player = null;
 let animate = null;
 let screens = null;
 const ui = createUI({
-  onNavigate: (section) => visit(section),
+  onNavigate: (section) => visit(section, { fromNav: true }),
   onBack: () => {
     player?.stop(); // cancel a visit that's still on its way
     interaction?.goHome();
@@ -42,8 +42,17 @@ const ui = createUI({
 
 // Opening a section: the person walks to the building's door first, and the
 // camera only zooms in once they've arrived.
-function visit(section) {
+// `fromNav` = it came from a nav button or a link in a panel, not a tap on
+// the island. On phones those open straight away: waiting several seconds
+// for the walk feels like the site isn't responding. Tapping a building
+// still walks, since that's the playful way in.
+function visit(section, { fromNav = false } = {}) {
   if (!player) return;
+  if (fromNav && NARROW_SCREEN.matches) {
+    player.jumpToDoor(section);
+    interaction.focus(section); // flies straight there, even from another building
+    return;
+  }
   // Already looking at a different building? Zoom back out to the overview
   // first, so you can watch the person walk over before zooming in again.
   // (Focus stays where it is: a new panel is about to open anyway.)

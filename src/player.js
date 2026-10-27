@@ -413,6 +413,18 @@ export function createPlayer(scene, root) {
     faceOnArrive = door.center;
   }
 
+  // Put them straight at a building's door, facing it, with no walk. Used
+  // when the phone tab bar opens a section, so the panel doesn't have to wait.
+  function jumpToDoor(section) {
+    stop();
+    const door = doors[section];
+    if (!door) return;
+    position.copy(door.point);
+    rig.root.position.copy(position);
+    yaw = targetYaw = Math.atan2(door.center.x - position.x, door.center.z - position.z);
+    rig.root.rotation.y = yaw;
+  }
+
   function setTarget(point, options) {
     stop();
     target = point.clone();
@@ -497,7 +509,7 @@ export function createPlayer(scene, root) {
     rig.body.position.y = bob + breathe;
   }
 
-  return { object: rig.root, position, update, walkTo, walkToDoor, stop };
+  return { object: rig.root, position, update, walkTo, walkToDoor, jumpToDoor, stop };
 }
 
 // ---------------------------------------------------------------------------

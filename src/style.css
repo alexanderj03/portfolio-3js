@@ -1318,6 +1318,11 @@ body.free-look #app canvas:active {
     max-height: 88vh;
     max-height: 88dvh;
   }
+  /* While a finger drags the sheet down (swipe to close), it follows the
+     finger exactly instead of easing behind it. */
+  .panel.dragging {
+    transition: none;
+  }
   /* Bigger touch targets. */
   .panel-close {
     --size: 44px;
@@ -1425,6 +1430,11 @@ body.free-look #app canvas:active {
   }
   #model-notice {
     bottom: calc(var(--gutter) + var(--tabbar-height) + 38px + env(safe-area-inset-bottom));
+  }
+  /* On phones the intro paragraph comes after the email postcard (ui.js
+     moves it up), so give it the same breathing room the card has above it. */
+  .postcard + .contact-intro {
+    margin-top: 26px;
   }
   .panel h2 {
     font-size: 1.35rem;

@@ -5,12 +5,16 @@
 import { about, projects, contact } from './content.js';
 
 const BASE = import.meta.env.BASE_URL;
-const NARROW_SCREEN = window.matchMedia('(max-width: 700px)');
+export const NARROW_SCREEN = window.matchMedia('(max-width: 700px)');
 // On phones the bottom sheet starts at this fraction of the screen height
 // (keep in step with `max-height: 60dvh` in style.css)...
 const SHEET_HEIGHT = 0.6;
 // ...and grows taller once you've scrolled this many pixels into it.
 const SHEET_EXPAND_AFTER = 24;
+// Swiping the sheet down closes it: drag it this many pixels, or flick it
+// faster than this (pixels per millisecond).
+const SHEET_CLOSE_DRAG = 90;
+const SHEET_CLOSE_SPEED = 0.6;
 
 export const SECTIONS = {
   // `eyebrow` (optional) is the small line shown above the panel heading.
@@ -102,6 +106,7 @@ export function createUI({ onNavigate, onBack, onPreviewProject = () => {} }) {
       },
       { passive: true },
     );
+    addSwipeToClose(panel);
     panelsEl.append(panel);
     panels[key] = panel;
 
@@ -121,6 +126,22 @@ export function createUI({ onNavigate, onBack, onPreviewProject = () => {} }) {
     if (e.target.closest('[data-back]')) onBack();
   });
   hideMissingResume(panelsEl);
+
+  // Phones only show the top of the Contact sheet at first, so the email
+  // postcard moves up there (above the intro paragraph) instead of sitting
+  // below the fold. Wider screens keep the original order. Moving the actual
+  // element, rather than reordering it with CSS, keeps the tab order and
+  // screen readers in step with what you see.
+  const contactBody = panels.contact.querySelector('.panel-body');
+  function placePostcard() {
+    const postcard = contactBody.querySelector('.postcard');
+    const before = NARROW_SCREEN.matches ? contactBody.querySelector('.contact-intro') : contactBody.querySelector('h3');
+    if (!postcard || !before) return;
+    contactBody.insertBefore(postcard, before);
+    [...contactBody.children].forEach((child, i) => child.style.setProperty('--i', i)); // fade-in order
+  }
+  placePostcard();
+  NARROW_SCREEN.addEventListener('change', placePostcard);
 
   // --- Project cards ↔ studio monitors ------------------------------------
   // Whichever card you point at, tab to or tap goes up on the monitors, and
@@ -166,10 +187,15 @@ export function createUI({ onNavigate, onBack, onPreviewProject = () => {} }) {
     }
     const panel = panels[key];
     panel.hidden = false;
+    panel.style.transform = ''; // undo where a swipe-to-close left it
     // Each visit to the Studio starts with the first project on the monitors.
     if (key === 'projects') previewCard(panel.querySelector('.project-card'));
     // Wait one frame so the browser sees the "closed" state before animating to "open".
-    requestAnimationFrame(() => panel.classList.add('open'));
+    // Skip it if the panel was closed (or swapped) during that frame, or it
+    // would come back on screen with nothing to close it.
+    requestAnimationFrame(() => {
+      if (openKey === key) panel.classList.add('open');
+    });
     panel.scrollTop = 0;
     panel.querySelector('h2').focus({ preventScroll: true });
 
@@ -190,6 +216,54 @@ export function createUI({ onNavigate, onBack, onPreviewProject = () => {} }) {
     document.body.classList.remove('has-panel');
     if (returnFocus && returnFocusTo && document.contains(returnFocusTo)) returnFocusTo.focus({ preventScroll: true });
     returnFocusTo = null;
+  }
+
+  // Phones: drag the sheet down to close it, like a native bottom sheet.
+  // The drag only starts when the sheet is scrolled to the top and the finger
+  // moves down; anything else is left alone so the sheet scrolls as normal.
+  function addSwipeToClose(panel) {
+    let drag = null;
+    panel.addEventListener(
+      'touchstart',
+      (e) => {
+        if (!NARROW_SCREEN.matches || e.touches.length !== 1 || panel.scrollTop > 0) return;
+        drag = { startY: e.touches[0].clientY, startTime: e.timeStamp, distance: 0, active: false };
+      },
+      { passive: true },
+    );
+    // Not passive, so it can stop the page scrolling while the sheet is dragged.
+    panel.addEventListener(
+      'touchmove',
+      (e) => {
+        if (!drag) return;
+        const dy = e.touches[0].clientY - drag.startY;
+        if (!drag.active) {
+          if (dy < 0) drag = null; // moving up: that's a scroll, not a swipe
+          if (dy < 6) return; // wait for a clear downward move first
+          drag.active = true;
+          panel.classList.add('dragging');
+        }
+        e.preventDefault();
+        drag.distance = Math.max(0, dy);
+        panel.style.transform = `translateY(${drag.distance}px)`;
+      },
+      { passive: false },
+    );
+    const end = (e) => {
+      const done = drag;
+      drag = null;
+      if (!done?.active) return;
+      panel.classList.remove('dragging'); // transitions back on
+      const speed = done.distance / Math.max(1, e.timeStamp - done.startTime);
+      if (done.distance > SHEET_CLOSE_DRAG || (speed > SHEET_CLOSE_SPEED && done.distance > 30)) {
+        panel.style.transform = 'translateY(100%)'; // carry on down and off the screen
+        onBack();
+      } else {
+        panel.style.transform = ''; // not far enough: spring back up
+      }
+    };
+    panel.addEventListener('touchend', end);
+    panel.addEventListener('touchcancel', end);
   }
 
   function hidePanel(panel) {
@@ -419,7 +493,7 @@ export function renderContact() {
           el('ul', { class: 'chips' }, ...contact.workModes.map((mode) => el('li', {}, mode))),
         )
       : null,
-    contact.intro ? el('p', {}, contact.intro) : null,
+    contact.intro ? el('p', { class: 'contact-intro' }, contact.intro) : null,
 
     // The email "postcard", a nod to the red post box beside the café.
     el(
