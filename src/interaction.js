@@ -4,7 +4,7 @@
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { findObject, nameMatches } from './loader.js';
-import { LANDMARKS, HERO_TARGET, getHeroPosition } from './scene.js';
+import { LANDMARKS, getHeroView } from './scene.js';
 
 // Which named objects are clickable, and which section each one opens.
 const HOTSPOTS = [
@@ -433,7 +433,7 @@ export function createInteraction({ camera, controls, renderer, root, ui, labels
   }
 
   function heroView() {
-    return { position: getHeroPosition(camera.aspect), target: HERO_TARGET, shift: new THREE.Vector2(0, 0) };
+    return { ...getHeroView(camera.aspect), shift: new THREE.Vector2(0, 0) };
   }
 
   // Fly to an overview `view` and hand the camera back to OrbitControls there.

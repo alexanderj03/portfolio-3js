@@ -93,7 +93,7 @@ renderer.setAnimationLoop((timestamp) => {
 
   interaction?.update(dt);
   player?.update(dt, time); // walks toward the last clicked spot
-  freeCam?.update(dt); // WASD / arrow keys while the camera is unlocked
+  freeCam?.update(dt); // Q / E turning while the camera is unlocked
   night.update(dt); // fades the lights when switching between day and night
   // OrbitControls only drive the camera on the overview; during a flight or
   // while looking at a building the interaction code is in charge.

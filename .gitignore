@@ -8,6 +8,7 @@ dist-ssr
 # Local AI / design tool files: personal settings, installed skills, caches
 .claude/
 .impeccable/
+CLAUDE.md
 
 # Environment files (secrets)
 .env
