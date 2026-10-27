@@ -1,0 +1,28 @@
+# Dependencies (recreated by `npm install`)
+node_modules
+
+# Build output (recreated by `npm run build`)
+dist
+dist-ssr
+
+# Local AI / design tool files: personal settings, installed skills, caches
+.claude/
+.impeccable/
+
+# Environment files (secrets)
+.env
+.env.*
+*.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Editor and OS clutter
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+Thumbs.db
+*.swp

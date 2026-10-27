@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏝️</text></svg>" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Alexander · Portfolio</title>
+    <meta name="description" content="Portfolio of Alexander: a little floating island with an about-me cabin, a projects studio and a contact café." />
+    <meta name="theme-color" content="#bfe3f5" />
+    <!-- Day or night (night.js): applied here, before anything is drawn, so a
+         saved "night" doesn't flash the day colours first. -->
+    <script>
+      try {
+        document.documentElement.dataset.theme = localStorage.getItem('island-theme') === 'night' ? 'night' : 'day';
+      } catch {}
+    </script>
+  </head>
+  <body>
+    <!-- Keyboard users can jump straight to the section buttons. -->
+    <a class="skip-link" href="#nav">Skip to sections</a>
+
+    <!-- The Three.js canvas is added inside here. -->
+    <div id="app" aria-hidden="true"></div>
+
+    <!-- Loading screen (removed by loader.js when the model is ready). -->
+    <div id="loading" role="status" aria-live="polite">
+      <div class="loading-inner">
+        <p id="loading-text">Loading island…</p>
+        <div class="loading-track"><div id="loading-bar"></div></div>
+      </div>
+    </div>
+
+    <!-- Shown by loader.js when public/models/scene.glb is missing. -->
+    <div id="model-notice" role="note" hidden>
+      <strong>Add <code>scene.glb</code> to <code>public/models/</code></strong>
+      <span class="detail">You're looking at a placeholder island until then.</span>
+    </div>
+
+    <!-- Section buttons (filled in by ui.js). Also the keyboard way in. -->
+    <nav id="nav" aria-label="Sections"></nav>
+
+    <p class="hint" aria-hidden="true">
+      <span class="hint-mouse">Click the ground to walk · click a building</span>
+      <span class="hint-touch">Tap the ground to walk · tap a building</span>
+      <span class="hint-free-mouse">Drag to look · scroll to zoom · WASD to move · Q/E to turn</span>
+      <span class="hint-free-touch">Drag to look · pinch to zoom · two fingers to move</span>
+    </p>
+
+    <!-- Top-left buttons, side by side. -->
+    <div id="corner-buttons">
+      <button id="back-btn" type="button" hidden>← Back to island</button>
+
+      <!-- Unlocks the camera to look around, and locks it back to the start view
+           (filled in by freecam.js once the island has loaded). -->
+      <button id="camera-btn" type="button" hidden></button>
+
+      <!-- Day / night switch (filled in by night.js). -->
+      <button id="theme-btn" type="button" hidden></button>
+    </div>
+
+    <!-- Small label that follows the mouse over a building. -->
+    <div id="hover-label" aria-hidden="true" hidden></div>
+
+    <!-- Section panels (filled in by ui.js from src/content.js). -->
+    <div id="panels"></div>
+
+    <noscript>
+      This site needs JavaScript for the 3D island.
+    </noscript>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
