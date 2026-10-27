@@ -1,28 +1,33 @@
 // ---------------------------------------------------------------------------
-// player.js: a little low-poly person who walks around the island.
-// Click the ground and they walk there. The body is built from simple
-// flat-shaded boxes (to match the model) and it has a walk cycle. Before
-// setting off they plan a route around buildings, trees and the island's
-// edge (an A* search over a grid), testing each step with rays against the
-// island's meshes, then follow it.
+// player.js: the person who walks around the island.
+// Click the ground and they walk there. Before setting off they plan a
+// route around buildings, trees and the island's edge (an A* search over a
+// grid), testing each step with rays against the island's meshes, then
+// follow it. The body is the rigged character from avatar.js: this file
+// moves and turns it, and avatar.js plays its Walk / Idle / Wave clips.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { findObject, nameMatches } from './loader.js';
 import { LANDMARKS, PLAZA_POSITION } from './scene.js';
 
-// Where the person starts: beside the plaza signpost, facing the camera.
-const SPAWN = [PLAZA_POSITION[0] + 1.6, PLAZA_POSITION[2] + 2.6]; // x, z
+// Where the person starts: on the plaza just in front of the signpost
+// (0.5, 4.0), facing the camera.
+const SPAWN = [PLAZA_POSITION[0], PLAZA_POSITION[2] + 2]; // x, z
 
-const WALK_SPEED = 3; // metres per second
+// Metres per second. The avatar's Walk clip was animated for 1.4 (a calm
+// stroll), which made visits feel slow; avatar.js speeds the clip up to
+// match whatever this is (about 2x at 3), so the feet don't slide.
+const WALK_SPEED = 3;
 const TURN_SPEED = 12; // how quickly they turn to face where they're going
-const STRIDE = 1.3; // metres covered by one full walk cycle (two steps)
 const RADIUS = 0.3; // how close to a wall they can get
 const STEP_UP = 0.45; // tallest ledge they can step onto
 const MAX_DROP = 1.0; // furthest they'll step down; more than this = edge of the island
 // Knee, waist and chest height (above the feet). The waist one catches
 // counters and tables (e.g. the pizza oven stand) that the others pass under or over.
 const WALL_RAY_HEIGHTS = [STEP_UP + 0.1, 1.0, 1.5];
-const HEADROOM = 1.7; // nothing may hang lower than this over where they stand (they're 1.75 m)
+// Nothing may hang lower than this over where they stand. (They're about
+// 1.8 m; going higher would rule out the café door, under its awning.)
+const HEADROOM = 1.7;
 
 // Route finding: the island is treated as a grid of square cells, and the
 // person searches for a chain of cells they can step between (the "A*"
@@ -62,20 +67,13 @@ const TERRAIN = ['Island_Top', 'Island_Stones', 'Island_RockPool', 'Island_Cliff
 const WALKABLE = ['Island_Top', 'Island_Stones', 'Island_RockPool'];
 const NOT_WALKABLE_MATERIALS = ['PondBed']; // part of Island_Top, under the water
 
-const COLORS = {
-  skin: '#f1c7a3',
-  hair: '#4a3426',
-  shirt: '#e4572e',
-  pants: '#2e4a62',
-  shoes: '#2b2b2b',
-  eyes: '#1f2d3a',
-};
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
-// `root` is the island. The person is added to `scene` (not to the island),
-// so clicking on them never counts as clicking a building.
-export function createPlayer(scene, root) {
-  const rig = buildCharacter();
-  scene.add(rig.root);
+// `root` is the island; `avatar` is the body, from loadAvatar() in avatar.js.
+// The body is in `scene` (not in the island), so clicking on them never
+// counts as clicking a building, and they never collide with themselves.
+export function createPlayer(scene, root, avatar) {
+  const body = avatar.object;
 
   // --- Collision meshes --------------------------------------------------
   const ground = []; // meshes you can stand on (the island, plus building decks and steps)
@@ -358,24 +356,26 @@ export function createPlayer(scene, root) {
   // height smoothed so steps up and down don't look jerky.
   const position = new THREE.Vector3(SPAWN[0], 0, SPAWN[1]);
   position.y = groundAt(position.x, position.z, 30, 60) ?? PLAZA_POSITION[1];
-  rig.root.position.copy(position);
+  body.position.copy(position);
   let yaw = 0; // which way they face (0 = +Z, toward the hero camera)
   let targetYaw = 0;
-  let walkPhase = 0; // 0..2π through the walk cycle
-  let walkAmount = 0; // 0 = standing, 1 = walking (eases between the two)
   let target = null; // where they're walking to (a Vector3), or null
   let route = []; // points still to walk through on the way (with ground heights), ending at `target`
   let lastPoint = null; // the route point they've just passed (or where they set off)
   let onArrive = null; // called when they get there (used for building visits)
-  let faceOnArrive = null; // point to turn toward on arrival, e.g. the building
+  let faceOnArrive = null; // direction (yaw) to turn to on arrival, e.g. out from a building's door
 
-  const doors = {}; // section -> { point, center }
+  const doors = {}; // section -> { point, center, faceYaw }
   for (const section of Object.keys(LANDMARKS)) {
     const door = findDoor(root, section);
     if (!door) continue;
     // Look for the ground from just above the doorstep, not from the sky:
     // the spot is under the café awning and the studio's roof overhang.
     door.point.y = groundAt(door.point.x, door.point.z, door.point.y + 1, 2) ?? door.point.y;
+    // Which way to face at the door: straight out from it, along the
+    // building's front. That's where the camera is when it zooms in on the
+    // building, so they end up facing the camera rather than the door.
+    door.faceYaw = Math.atan2(door.point.x - door.center.x, door.point.z - door.center.z);
     doors[section] = door;
   }
 
@@ -389,7 +389,7 @@ export function createPlayer(scene, root) {
 
   // Called with a raycaster hit from a click. If it's on the island's ground,
   // start walking there. Returns true if they're on their way.
-  function walkTo(hit) {
+  function walkToClick(hit) {
     const material = hit.object.material?.name ?? '';
     const flat = normal.copy(hit.face.normal).transformDirection(hit.object.matrixWorld).y > 0.5;
     if (!flat || !hasAncestorNamed(hit.object, WALKABLE) || NOT_WALKABLE_MATERIALS.some((m) => material.startsWith(m))) {
@@ -397,6 +397,15 @@ export function createPlayer(scene, root) {
     }
     setTarget(hit.point);
     return true;
+  }
+
+  // Walk to any point (a THREE.Vector3), around whatever's in the way. For
+  // calling from other code, e.g. `island.player.walkTo(new THREE.Vector3(3, 0, 2))`
+  // in the console. The height doesn't matter: they stay on the ground.
+  // `arrived` (optional) is called when they get there.
+  function walkTo(point, arrived = null) {
+    setTarget(point);
+    onArrive = arrived;
   }
 
   // Walk to a building's door, then call `arrived()` (which zooms the camera
@@ -410,19 +419,19 @@ export function createPlayer(scene, root) {
     }
     setTarget(door.point, { preferPaths: true });
     onArrive = arrived;
-    faceOnArrive = door.center;
+    faceOnArrive = door.faceYaw;
   }
 
-  // Put them straight at a building's door, facing it, with no walk. Used
+  // Put them straight at a building's door, facing the camera, with no walk. Used
   // when the phone tab bar opens a section, so the panel doesn't have to wait.
   function jumpToDoor(section) {
     stop();
     const door = doors[section];
     if (!door) return;
     position.copy(door.point);
-    rig.root.position.copy(position);
-    yaw = targetYaw = Math.atan2(door.center.x - position.x, door.center.z - position.z);
-    rig.root.rotation.y = yaw;
+    body.position.copy(position);
+    yaw = targetYaw = door.faceYaw;
+    body.rotation.y = yaw;
   }
 
   function setTarget(point, options) {
@@ -443,17 +452,34 @@ export function createPlayer(scene, root) {
     marker.visible = false;
   }
 
-  // Got there (or as close as they can get): turn to the building, if any, and run the callback.
+  // Got there (or as close as they can get): turn to face the camera, if
+  // it's a building visit, and run the callback.
   function arrive() {
     const callback = onArrive;
-    if (faceOnArrive) targetYaw = Math.atan2(faceOnArrive.x - position.x, faceOnArrive.z - position.z);
+    if (faceOnArrive != null) targetYaw = faceOnArrive;
     stop();
     callback?.();
   }
 
-  // Called every frame. `time` (seconds) drives the little idle movements.
+  // Stop and play an animation clip from avatar.js (e.g. 'Wave') `times`
+  // times, then go back to standing (Idle).
+  function play(name, times) {
+    stop();
+    avatar.play(name, times);
+  }
+
+  // Called every frame. `time` (seconds) makes the click marker pulse.
   function update(dt, time) {
     let moved = 0;
+    if (target && reduceMotion.matches) {
+      // Reduced motion: no walking. They appear at the end of the route
+      // straight away (still a spot they could have walked to).
+      const end = route[route.length - 1] ?? position;
+      if (flatDistance(position, end) > 1e-6) targetYaw = Math.atan2(end.x - position.x, end.z - position.z);
+      position.copy(end);
+      body.position.copy(end);
+      route = [];
+    }
     if (target) {
       // Walk along the route. findRoute() has already checked every part of
       // it for walls and edges, so they just follow it, point to point.
@@ -482,113 +508,42 @@ export function createPlayer(scene, root) {
     if (marker.visible) marker.scale.setScalar(1 + Math.sin(time * 6) * 0.08);
 
     // Turn smoothly toward the target direction (the short way round).
+    // With reduced motion, turn all at once.
     const turn = THREE.MathUtils.euclideanModulo(targetYaw - yaw + Math.PI, Math.PI * 2) - Math.PI;
-    yaw += turn * Math.min(1, TURN_SPEED * dt);
-    rig.root.rotation.y = yaw;
+    yaw += turn * (reduceMotion.matches ? 1 : Math.min(1, TURN_SPEED * dt));
+    body.rotation.y = yaw;
 
-    rig.root.position.x = position.x;
-    rig.root.position.z = position.z;
-    rig.root.position.y += (position.y - rig.root.position.y) * Math.min(1, 15 * dt);
+    // The body follows `position`, with the height smoothed so steps up and
+    // down don't look jerky.
+    body.position.x = position.x;
+    body.position.z = position.z;
+    body.position.y += (position.y - body.position.y) * Math.min(1, 15 * dt);
 
-    animate(dt, time, dt > 0 ? moved / dt : 0);
+    // Plays the clips: Walk while moving, Idle when standing.
+    avatar.update(dt, dt > 0 ? moved / dt : 0);
   }
 
-  // Swings the arms and legs. `speed` is in metres per second.
-  function animate(dt, time, speed) {
-    walkAmount += ((speed > 0.1 ? 1 : 0) - walkAmount) * Math.min(1, 10 * dt);
-    walkPhase = (walkPhase + (speed * dt * Math.PI * 2) / STRIDE) % (Math.PI * 2);
-
-    const swing = Math.sin(walkPhase) * 0.55 * walkAmount;
-    rig.legs[0].rotation.x = swing;
-    rig.legs[1].rotation.x = -swing;
-    rig.arms[0].rotation.x = -swing * 0.9;
-    rig.arms[1].rotation.x = swing * 0.9;
-    // Bob up twice per cycle (once per step).
-    const bob = Math.abs(Math.cos(walkPhase)) * 0.05 * walkAmount;
-    const breathe = Math.sin(time * 2) * 0.006 * (1 - walkAmount); // tiny idle movement
-    rig.body.position.y = bob + breathe;
-  }
-
-  return { object: rig.root, position, update, walkTo, walkToDoor, jumpToDoor, stop };
-}
-
-// ---------------------------------------------------------------------------
-// The character model: about 1.75 m tall, facing +Z, feet at y = 0.
-// Arms and legs hang from "joint" groups so they can swing.
-// ---------------------------------------------------------------------------
-function buildCharacter() {
-  const mat = (color) => new THREE.MeshStandardMaterial({ color, flatShading: true });
-  const m = Object.fromEntries(Object.entries(COLORS).map(([key, color]) => [key, mat(color)]));
-
-  // A box whose top edge is at its origin, so it hangs down from a joint.
-  const hanging = (w, h, d, material) => {
-    const geometry = new THREE.BoxGeometry(w, h, d);
-    geometry.translate(0, -h / 2, 0);
-    return new THREE.Mesh(geometry, material);
+  return {
+    object: body, // the character (THREE.Object3D)
+    hitBox: avatar.hitBox, // invisible box for hover/click rays
+    position, // where the feet are (a THREE.Vector3; don't change it directly)
+    update,
+    walkTo, // walkTo(point, arrived?)
+    walkToClick, // used by main.js for clicks on the ground
+    walkToDoor,
+    jumpToDoor,
+    stop,
+    play, // play('Wave'), play('Wave', 3)
+    idle: () => play('Idle'),
+    wave() {
+      stop();
+      avatar.wave(); // CLICK_WAVES times (avatar.js)
+    },
   };
-
-  const root = new THREE.Group(); // stands on the ground, turns to face where it walks
-  root.name = 'Player';
-  const body = new THREE.Group(); // bobs up and down while walking
-  root.add(body);
-
-  // Legs, hanging from hip joints 0.8 m up.
-  const legs = [-1, 1].map((side) => {
-    const hip = new THREE.Group();
-    hip.position.set(side * 0.11, 0.8, 0);
-    const leg = hanging(0.15, 0.72, 0.17, m.pants);
-    const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.1, 0.28), m.shoes);
-    shoe.position.set(0, -0.75, 0.04);
-    hip.add(leg, shoe);
-    body.add(hip);
-    return hip;
-  });
-
-  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.6, 0.24), m.shirt);
-  torso.position.y = 1.1;
-  const neck = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), m.skin);
-  neck.position.y = 1.44;
-
-  // Arms, hanging from shoulder joints: a short sleeve, then a bare forearm.
-  const arms = [-1, 1].map((side) => {
-    const shoulder = new THREE.Group();
-    shoulder.position.set(side * 0.27, 1.37, 0);
-    shoulder.rotation.z = side * 0.08; // hang slightly away from the body
-    const sleeve = hanging(0.13, 0.28, 0.15, m.shirt);
-    const forearm = hanging(0.1, 0.3, 0.11, m.skin);
-    forearm.position.y = -0.27;
-    shoulder.add(sleeve, forearm);
-    body.add(shoulder);
-    return shoulder;
-  });
-
-  // Head: a faceted ball with a hair cap and two little eyes (so you can tell
-  // which way they're facing).
-  const head = new THREE.Group();
-  head.position.y = 1.6;
-  const face = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16, 1), m.skin);
-  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.175, 7, 4, 0, Math.PI * 2, 0, Math.PI * 0.55), m.hair);
-  hair.position.set(0, 0.02, -0.015);
-  hair.rotation.x = -0.25;
-  head.add(face, hair);
-  for (const side of [-1, 1]) {
-    const eye = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.05, 0.02), m.eyes);
-    eye.position.set(side * 0.06, 0.01, 0.15);
-    head.add(eye);
-  }
-
-  body.add(torso, neck, head);
-  root.traverse((obj) => {
-    if (obj.isMesh) {
-      obj.castShadow = true;
-      obj.receiveShadow = true;
-    }
-  });
-  return { root, body, legs, arms };
 }
 
 // Where to stand to visit a section's building (`point`, just in front of the
-// door) and what to turn toward on arrival (`center`). Null if it's missing.
+// door) and the middle of the door itself (`center`). Null if it's missing.
 function findDoor(root, section) {
   const building = findObject(root, LANDMARKS[section].object);
   if (!building) return null;

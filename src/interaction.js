@@ -68,11 +68,18 @@ export function createInteraction({ camera, controls, renderer, root, ui, labels
     buildings[section] = findObject(root, mark.object);
   }
 
+  // Clickable things that aren't part of the island model (e.g. the avatar),
+  // added with addClickable(). Map from object to { label, onClick }.
+  const extras = new Map();
+  const rayTargets = [root]; // what castRay() tests: the island plus the extras
+
   // Walks up from the mesh that was hit until it finds a hotspot.
-  // Returns { section, object } or null.
+  // Returns { section, object } for a building hotspot, { extra, object }
+  // for an extra clickable, or null.
   function hotspotFromHit(object) {
     for (let o = object; o; o = o.parent) {
       if (hotspotSection.has(o)) return { section: hotspotSection.get(o), object: o };
+      if (extras.has(o)) return { extra: extras.get(o), object: o };
     }
     return null;
   }
@@ -84,7 +91,7 @@ export function createInteraction({ camera, controls, renderer, root, ui, labels
     pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
     pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(pointer, camera);
-    return raycaster.intersectObject(root, true).find((h) => isShown(h.object));
+    return raycaster.intersectObjects(rayTargets, true).find((h) => isShown(h.object));
   }
 
   // The hotspot under the pointer, or null.
@@ -143,13 +150,17 @@ export function createInteraction({ camera, controls, renderer, root, ui, labels
     const changed = hit?.object !== hovered?.object;
     hovered = hit;
     if (hit) {
-      if (changed) {
+      if (changed && hit.extra) {
+        // Extras get the cursor and label but no glow: the highlight copy
+        // wouldn't follow an animated (skinned) mesh like the avatar.
+        setHighlight([]);
+      } else if (changed) {
         // Highlight the building, plus the arrow/post box if that's what was hovered.
         const building = buildings[hit.section];
         setHighlight(building && building !== hit.object ? [building, hit.object] : [hit.object]);
       }
       canvas.style.cursor = 'pointer';
-      ui.showLabel(labels[hit.section], x, y);
+      ui.showLabel(hit.extra ? hit.extra.label : labels[hit.section], x, y);
     } else if (changed) {
       clearHover();
     }
@@ -180,7 +191,8 @@ export function createInteraction({ camera, controls, renderer, root, ui, labels
     if (moved > CLICK_MAX_MOVE || state === 'flying') return; // it was a drag
     const hit = castRay(e.clientX, e.clientY);
     const spot = hit && hotspotFromHit(hit.object);
-    if (spot) (onSelect ?? focus)(spot.section);
+    if (spot?.extra) spot.extra.onClick();
+    else if (spot) (onSelect ?? focus)(spot.section);
     else if (hit) onMiss?.(hit);
   });
 
@@ -446,6 +458,13 @@ export function createInteraction({ camera, controls, renderer, root, ui, labels
     });
   }
 
+  // Makes `object` (something outside the island, like the avatar) clickable:
+  // hovering shows a pointer and `label`, clicking calls `onClick()`.
+  function addClickable(object, { label, onClick }) {
+    extras.set(object, { label, onClick });
+    rayTargets.push(object);
+  }
+
   // If the window changes size while looking at a building, re-frame it.
   function onResize() {
     if (state !== 'focused') {
@@ -465,6 +484,7 @@ export function createInteraction({ camera, controls, renderer, root, ui, labels
     goHome,
     resetView,
     onResize,
+    addClickable,
     // True while the camera is unlocked for looking around (freecam.js).
     get freeLook() {
       return freeLook;

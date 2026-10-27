@@ -14,6 +14,8 @@ import { createPlayer } from './player.js';
 import { createScreens } from './screens.js';
 import { createFreeCam } from './freecam.js';
 import { createNight } from './night.js';
+import { loadAvatar } from './avatar.js';
+import { avatar as avatarText } from './content.js';
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -47,7 +49,11 @@ const ui = createUI({
 // for the walk feels like the site isn't responding. Tapping a building
 // still walks, since that's the playful way in.
 function visit(section, { fromNav = false } = {}) {
-  if (!player) return;
+  if (!interaction) return; // still loading
+  if (!player) {
+    interaction.focus(section); // no avatar.glb, so no one to walk: just open it
+    return;
+  }
   if (fromNav && NARROW_SCREEN.matches) {
     player.jumpToDoor(section);
     interaction.focus(section); // flies straight there, even from another building
@@ -62,10 +68,16 @@ function visit(section, { fromNav = false } = {}) {
 }
 
 // 3. Load the model (or the placeholder), then hook everything up.
-loadIsland(scene).then(({ root }) => {
+//    The person who walks around (avatar.glb, a separate file with its own
+//    animation clips) starts loading at the same time. It's the smaller
+//    file, so it's usually ready first. If it's missing, loadAvatar() logs
+//    a warning and gives null, and the site works without a walker.
+const avatarReady = loadAvatar(scene);
+loadIsland(scene).then(async ({ root }) => {
   createSigns(root, renderer); // big readable text on the signs
   const labels = Object.fromEntries(Object.entries(SECTIONS).map(([key, s]) => [key, s.title]));
-  player = createPlayer(scene, root);
+  const avatar = await avatarReady;
+  if (avatar) player = createPlayer(scene, root, avatar);
   // After the player, so the walker's collision checks never see the panels.
   screens = createScreens(root); // projects on the studio monitors
   interaction = createInteraction({
@@ -77,15 +89,23 @@ loadIsland(scene).then(({ root }) => {
     labels,
     onSelect: visit, // clicking a building (or its signpost arrow / the post box)
     // Clicking the island's ground (not a building) walks the person there.
-    onMiss: (hit) => player.walkTo(hit),
+    // If you were looking at a building, that also closes its panel and
+    // zooms back out, so you can watch them go. (goHome() does nothing if
+    // you're already on the overview.) Focus isn't sent back to the nav
+    // button: this was a click on the island, not on the panel.
+    onMiss: (hit) => {
+      if (player?.walkToClick(hit)) interaction.goHome({ returnFocus: false });
+    },
   });
+  // Hovering over the person shows "Hi!"; clicking them makes them wave.
+  if (player) interaction.addClickable(player.hitBox, { label: avatarText.label, onClick: player.wave });
   // The "Look around" / "Lock view" camera button (top left).
   createFreeCam({ controls, interaction });
   animate = createAnimations(root);
   stage.onResize(() => interaction.onResize());
 
   // Handy for poking around in the browser console while developing,
-  // e.g. `island.root.getObjectByName('CafeCup')`.
+  // e.g. `island.root.getObjectByName('CafeCup')` or `island.player.play('Wave')`.
   if (import.meta.env.DEV) window.island = { scene, camera, controls, root, player, THREE };
 });
 
@@ -100,7 +120,7 @@ renderer.setAnimationLoop((timestamp) => {
   const time = timer.getElapsed();
 
   interaction?.update(dt);
-  player?.update(dt, time); // walks toward the last clicked spot
+  player?.update(dt, time); // walks toward the last clicked spot, and plays the avatar's clips
   night.update(dt); // fades the lights when switching between day and night
   // OrbitControls only drive the camera on the overview; during a flight or
   // while looking at a building the interaction code is in charge.

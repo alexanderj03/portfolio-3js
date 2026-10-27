@@ -18,6 +18,12 @@ export const signs = {
   contact: ['Contact'],
 };
 
+// The person who walks around the island (avatar.js). `label` pops up
+// when you hover over them; clicking makes them wave.
+export const avatar = {
+  label: 'Hi!',
+};
+
 export const about = {
   // `title` is the nav button; `heading` is the big title inside the panel.
   title: 'About me',

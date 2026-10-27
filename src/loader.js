@@ -51,12 +51,26 @@ function setProgress(fraction) {
   textEl.textContent = `Loading island… ${percent}%`;
 }
 
+// Resolves once the loading screen has faded out and been removed, so other
+// code can wait until the island is actually visible (e.g. the avatar's
+// greeting wave in avatar.js).
+let markLoadingGone;
+export const loadingScreenGone = new Promise((resolve) => (markLoadingGone = resolve));
+
 // Fades the loading screen out, then removes it from the page.
 function hideLoading() {
   barEl.style.width = '100%';
   loadingEl.classList.add('done');
-  loadingEl.addEventListener('transitionend', () => loadingEl.remove(), { once: true });
-  setTimeout(() => loadingEl.remove(), 1500); // fallback if no transition fires
+  const remove = () => {
+    loadingEl.remove();
+    markLoadingGone();
+  };
+  // Only the screen's own fade counts: the progress bar's width transition
+  // also fires "transitionend", and that bubbles up to here too.
+  loadingEl.addEventListener('transitionend', (e) => {
+    if (e.target === loadingEl) remove();
+  });
+  setTimeout(remove, 1500); // fallback if no transition fires
 }
 
 // ---------------------------------------------------------------------------
@@ -103,7 +117,8 @@ export async function loadIsland(scene) {
   return { root, isPlaceholder };
 }
 
-function createGLTFLoader() {
+// Also used by avatar.js, so both models load the same way.
+export function createGLTFLoader() {
   // DRACOLoader decompresses Draco-compressed meshes. It's harmless when the
   // file isn't compressed, so you can turn compression on later in Blender
   // (Export glTF > Data > Compression) without changing any code.
