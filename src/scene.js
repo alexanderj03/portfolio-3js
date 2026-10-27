@@ -54,7 +54,7 @@ const HERO_MAX_PULLBACK = 2.4; // never back off more than 2.4x the normal dista
 // and PHONE_ASPECT blend smoothly between the two framings.
 const PHONE_ASPECT = 0.6; // this narrow or narrower = full phone framing
 const PHONE_FIT_WIDTH = 36; // metres across the screen (the buildings span ~33 m)
-const PHONE_ELEVATION = 40; // degrees above the horizon (the hero shot is ~24°)
+const PHONE_ELEVATION = 29; // degrees above the horizon (the hero shot is ~24°)
 // Slides the island up the screen, as a fraction of the screen height, to
 // clear the tab bar along the bottom. 0 = centred.
 const PHONE_LIFT = 0;

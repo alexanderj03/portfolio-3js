@@ -30,7 +30,6 @@ let interaction = null;
 let player = null;
 let animate = null;
 let screens = null;
-let freeCam = null;
 const ui = createUI({
   onNavigate: (section) => visit(section),
   onBack: () => {
@@ -72,7 +71,7 @@ loadIsland(scene).then(({ root }) => {
     onMiss: (hit) => player.walkTo(hit),
   });
   // The "Look around" / "Lock view" camera button (top left).
-  freeCam = createFreeCam({ camera, controls, interaction });
+  createFreeCam({ controls, interaction });
   animate = createAnimations(root);
   stage.onResize(() => interaction.onResize());
 
@@ -93,7 +92,6 @@ renderer.setAnimationLoop((timestamp) => {
 
   interaction?.update(dt);
   player?.update(dt, time); // walks toward the last clicked spot
-  freeCam?.update(dt); // Q / E turning while the camera is unlocked
   night.update(dt); // fades the lights when switching between day and night
   // OrbitControls only drive the camera on the overview; during a flight or
   // while looking at a building the interaction code is in charge.

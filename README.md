@@ -33,7 +33,7 @@ a coffee cup that bobs and spins on the café.
   The person walks to its door, the camera flies in, and that section's panel
   opens. Back, Esc or the close button returns you to the island.
 - **Look around** (the camera button, or `L`) unlocks the camera: drag to
-  orbit, scroll to zoom, right-drag to slide, and Q / E to turn.
+  orbit, scroll to zoom and right-drag to slide.
 - **Day / night** (the moon button, or `N`) fades the sky, light and water to
   a moonlit scene. Your choice is remembered.
 - On phones, the panels become bottom sheets and the nav becomes a tab bar.
