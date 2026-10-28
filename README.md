@@ -11,7 +11,7 @@ The island floats in the sky, with a stream that runs across it and spills off
 the edge as a waterfall. A welcome sign at the plaza says "Hi, I'm Alexander",
 and signposts point to three buildings:
 
-- **The A-frame cabin: About.** Who I am, my experience as a timeline, my
+- **The Cabin: About.** Who I am, my experience as a timeline, my
   skills and hobbies. The cabin has a climbing wall on it, and there's a pizza
   oven out the front, because those are my hobbies.
 - **The Studio: Projects.** Cards for the things I've built, each with links

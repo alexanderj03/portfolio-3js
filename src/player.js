@@ -91,7 +91,7 @@ export function createPlayer(scene, root, avatar) {
   // the floor ones for ground heights, and anything not vertical on the walls
   // for headroom (bench seats, counter tops, signboards...). On buildings only
   // near-flat surfaces count as floor (decks, steps), never a sloping roof:
-  // walked across at an angle, the A-frame's roof is a gentle enough ramp.
+  // walked across at an angle, the cabin's roof is a gentle enough ramp.
   const isWall = new Set(walls);
   const floorBins = binTriangles(ground, (n, mesh) => n.y > (isWall.has(mesh) ? BUILDING_FLOOR_MIN_NORMAL_Y : FLOOR_MIN_NORMAL_Y));
   const overheadBins = binTriangles(walls, (n) => Math.abs(n.y) > 0.05);

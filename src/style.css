@@ -503,7 +503,7 @@ body.free-look #app canvas:active {
    and is added to the shared selectors below (header band, display font,
    entrance animation). About and Contact also share the sub-heading style.
 
-   About: colours from the A-Frame cabin, warm wood with a roof-peak motif. */
+   About: colours from the cabin, warm wood with a roof-peak motif. */
 .panel[data-section='about'] {
   --section-accent: #b8572f; /* wood / terracotta */
   --section-accent-ink: #9a4423; /* darker, for small text and buttons (readable contrast) */
@@ -537,7 +537,7 @@ body.free-look #app canvas:active {
   padding: calc(var(--pad-top) + 4px) var(--pad-x) 18px;
   background: linear-gradient(135deg, var(--section-tint), var(--section-tint-2));
 }
-/* Two faceted "A-frame roofs" in the corner, a nod to the low-poly model. */
+/* Two faceted "cabin roofs" in the corner, a nod to the low-poly model. */
 .panel[data-section='about'] .panel-header::before,
 .panel[data-section='about'] .panel-header::after {
   content: '';
