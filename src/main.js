@@ -14,6 +14,7 @@ import { createPlayer } from './player.js';
 import { createScreens } from './screens.js';
 import { createFreeCam } from './freecam.js';
 import { createNight } from './night.js';
+import { createSky } from './sky.js';
 import { createIntro } from './intro.js';
 import { loadAvatar } from './avatar.js';
 import { avatar as avatarText } from './content.js';
@@ -23,9 +24,11 @@ const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 // 1. Renderer, camera, lights, controls.
 const stage = createStage(document.getElementById('app'));
 const { renderer, scene, camera, controls } = stage;
-// Day / night switch (moon button). Only needs the lights, so it works while
-// the model is still loading.
-const night = createNight(stage);
+// The gradient sky, clouds and stars behind the island.
+const sky = createSky(stage);
+// Day / night switch (moon button). Only needs the lights and the sky, so it
+// works while the model is still loading.
+const night = createNight({ ...stage, sky });
 
 // 2. HTML panels and buttons. `interaction` doesn't exist until the model has
 //    loaded, hence the `?.` (do nothing if it's not ready yet).
@@ -130,6 +133,7 @@ renderer.setAnimationLoop((timestamp) => {
   interaction?.update(dt);
   player?.update(dt, time); // walks toward the last clicked spot, and plays the avatar's clips
   night.update(dt); // fades the lights when switching between day and night
+  if (!reduceMotion.matches) sky.update(time); // drifting clouds, twinkling stars
   // OrbitControls only drive the camera on the overview; during a flight or
   // while looking at a building the interaction code is in charge.
   if (!interaction || interaction.controlsActive) controls.update();

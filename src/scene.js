@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 // Colours and numbers you might want to tweak, all in one place.
-export const SKY_COLOR = '#bfe3f5';
+// (The sky behind the island is in sky.js.)
 
 // The "hero" shot: where the camera starts and returns to.
 // Where the buildings are on the island (world positions, from Blender).
@@ -79,8 +79,8 @@ export function createStage(container) {
   container.appendChild(renderer.domElement);
 
   // --- Scene --------------------------------------------------------------
+  // No background colour: sky.js puts a gradient sky around everything.
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(SKY_COLOR);
 
   // --- Camera -------------------------------------------------------------
   const camera = new THREE.PerspectiveCamera(

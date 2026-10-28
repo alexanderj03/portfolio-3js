@@ -47,7 +47,7 @@
    Only colours change. Each themed panel has its own night colours further
    down, next to its day ones. */
 :root[data-theme='night'] {
-  --sky: #14213d; /* matches NIGHT.sky in night.js */
+  --sky: #14213d; /* roughly the night sky in sky.js */
   --ink: #e7edf4;
   --ink-soft: #a7b4c3;
   --card: rgba(26, 37, 58, 0.92);

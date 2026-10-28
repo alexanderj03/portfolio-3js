@@ -2,9 +2,10 @@
 // night.js: the day / night switch. The moon button (top left) and the N key
 // toggle it.
 //
-// Night fades the 3D scene over a second or so: the sky turns deep blue, the
-// soft hemisphere light dims, and the sun becomes a weaker, cooler moonlight
-// (same direction, so the shadows stay put). The glb's materials are never
+// Night fades the 3D scene over a second or so: the sky turns deep blue and
+// the stars come out (sky.js), the soft hemisphere light dims, and the sun
+// becomes a weaker, cooler moonlight (same direction, so the shadows stay
+// put; the clouds dim with it). The glb's materials are never
 // touched; lamps and the pizza oven keep their own glow, which is what makes
 // them stand out once it's dark.
 //
@@ -19,8 +20,8 @@ import { setWaterLight } from './water.js';
 
 // The night look. The day values aren't listed here: they're read from the
 // lights scene.js creates, so that file stays the one place to tweak the day.
+// The sky's colours (day and night) live in sky.js.
 const NIGHT = {
-  sky: '#14213d', // background colour
   hemiSky: '#7f9cd6', // soft light from above: moonlit blue
   hemiGround: '#2c4a3a', // bounce light from below: dark grass
   hemiIntensity: 0.55,
@@ -41,14 +42,13 @@ const ICON_MOON =
 const ICON_SUN =
   '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
 
-export function createNight({ scene, hemi, sun }) {
+export function createNight({ hemi, sun, sky }) {
   const button = document.getElementById('theme-btn');
   const themeMeta = document.querySelector('meta[name="theme-color"]');
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   // Snapshot of the day look, taken before anything changes it.
   const day = {
-    sky: scene.background.clone(),
     hemiSky: hemi.color.clone(),
     hemiGround: hemi.groundColor.clone(),
     hemiIntensity: hemi.intensity,
@@ -59,7 +59,6 @@ export function createNight({ scene, hemi, sun }) {
   };
   const night = {
     ...NIGHT,
-    sky: new THREE.Color(NIGHT.sky),
     hemiSky: new THREE.Color(NIGHT.hemiSky),
     hemiGround: new THREE.Color(NIGHT.hemiGround),
     sunColor: new THREE.Color(NIGHT.sunColor),
@@ -75,7 +74,7 @@ export function createNight({ scene, hemi, sun }) {
   function apply(t) {
     // Ease in and out, so the change starts and ends gently.
     const k = t * t * (3 - 2 * t);
-    scene.background.lerpColors(day.sky, night.sky, k);
+    sky.setNight(k);
     hemi.color.lerpColors(day.hemiSky, night.hemiSky, k);
     hemi.groundColor.lerpColors(day.hemiGround, night.hemiGround, k);
     hemi.intensity = THREE.MathUtils.lerp(day.hemiIntensity, night.hemiIntensity, k);
